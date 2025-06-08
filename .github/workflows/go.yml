@@ -1,0 +1,49 @@
+name: Go
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: root
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="mongosh --eval 'db.runCommand(\"ping\").ok'" 
+          --health-interval=10s 
+          --health-timeout=5s 
+          --health-retries=5
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.20'
+
+    - name: Set environment variables
+      run: |
+        echo "PORT=8080" >> $GITHUB_ENV
+        echo "DATABASE_URI=mongodb://root:root@localhost:27017/authentication-jwt?authSource=admin" >> $GITHUB_ENV
+        echo "DATABASE_NAME=authentication-jwt" >> $GITHUB_ENV
+        echo "JWT_SECRET=mysecretkey" >> $GITHUB_ENV
+        echo "JWT_SECRET_REFRESH=mysecretkeyrefresh" >> $GITHUB_ENV
+
+    - name: Install dependencies
+      run: go mod tidy
+
+    - name: Build project
+      run: go build -v ./...
+
+    - name: Run application
+      run: go run ./cmd/api/main.go &
